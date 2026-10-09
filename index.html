@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>乏燃料运输容器智能运维系统 · 威布尔可靠性评估模块</title>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#172231; --panel2:#1d2c3e; --line:#2a3b50;
+    --text:#e6edf5; --muted:#8fa3bb; --accent:#3b82f6; --accent2:#22d3ee;
+    --good:#34d399; --warn:#fbbf24; --bad:#f87171;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);}
+  header{background:linear-gradient(90deg,#0b1120,#14263c);border-bottom:1px solid var(--line);padding:18px 26px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+  header .logo{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:22px;}
+  header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.5px;}
+  header p{margin:2px 0 0;font-size:12.5px;color:var(--muted);}
+  header .badge{margin-left:auto;font-size:12px;color:var(--accent2);border:1px solid var(--line);padding:6px 12px;border-radius:20px;background:var(--panel);}
+  .wrap{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px;max-width:1500px;margin:0 auto;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;}
+  .card h2{font-size:14px;margin:0 0 12px;color:var(--accent2);display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:1px;}
+  .card h2::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--accent2);}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px;}
+  select,input[type=number],input[type=text]{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;}
+  textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px;font-size:12.5px;font-family:Consolas,monospace;resize:vertical;min-height:120px;line-height:1.5;}
+  .row{display:flex;gap:8px;margin-top:8px;}
+  .btn{flex:1;border:none;border-radius:8px;padding:9px 10px;font-size:13px;cursor:pointer;font-weight:600;transition:.15s;}
+  .btn.primary{background:var(--accent);color:#fff;}
+  .btn.primary:hover{filter:brightness(1.12);}
+  .btn.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line);}
+  .btn.ghost:hover{border-color:var(--accent);}
+  .btn.small{padding:6px 8px;font-size:12px;}
+  .radio{display:flex;gap:6px;flex-wrap:wrap;}
+  .radio label{display:flex;align-items:center;gap:6px;margin:0;padding:7px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:12.5px;color:var(--text);}
+  .radio input{accent-color:var(--accent);}
+  .radio label.sel{border-color:var(--accent);color:var(--accent2);}
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+  .stat .k{font-size:11px;color:var(--muted);}
+  .stat .v{font-size:20px;font-weight:700;margin-top:3px;font-family:Consolas,monospace;}
+  .stat .v small{font-size:12px;color:var(--muted);font-weight:400;}
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
+  .chart-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;}
+  .chart-box h3{font-size:13.5px;margin:0 0 4px;color:var(--text);}
+  .chart-box .formula{font-size:11px;color:var(--muted);margin-bottom:6px;font-family:Consolas,monospace;}
+  .chart-box svg{width:100%;height:auto;display:block;}
+  .note{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:12px;}
+  .thresh-row{display:flex;gap:8px;align-items:center;margin-top:6px;}
+  .thresh-row span{font-size:12px;color:var(--muted);width:58px;}
+  .tag{font-size:11px;padding:2px 8px;border-radius:10px;}
+  .tag.n{background:#143a2c;color:var(--good);}
+  .tag.w{background:#3a2f10;color:var(--warn);}
+  .tag.a{background:#3a1717;color:var(--bad);}
+  .empty{color:var(--muted);text-align:center;padding:60px 20px;font-size:14px;}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted);}
+  .legend i{display:inline-block;width:18px;height:3px;background:var(--accent);vertical-align:middle;margin-right:6px;border-radius:2px;}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr}.charts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⚛</div>
+  <div>
+    <h1>乏燃料运输容器智能运维系统 · 威布尔可靠性评估</h1>
+    <p>多源监测（加速度 / 应变 / 温度）数据 · 两参数威布尔分布建模 · 可靠度 / 失效概率密度 / 故障率曲线自动拟合</p>
+  </div>
+  <div class="badge">智能制造技术与装备</div>
+</header>
+
+<div class="wrap">
+  <!-- 左侧控制区 -->
+  <div class="card">
+    <h2>数据与参数设置</h2>
+
+    <label>监测参数</label>
+    <select id="param">
+      <option value="acc" selected>加速度（峰值，单位 g）</option>
+      <option value="strain">应变（累积形变，单位 με）</option>
+      <option value="temp">温度（极值，单位 ℃）</option>
+    </select>
+
+    <label>典型工况</label>
+    <select id="cond">
+      <option value="吊装">吊装</option>
+      <option value="公路运输" selected>公路运输</option>
+      <option value="铁路运输">铁路运输</option>
+      <option value="水路运输">水路运输</option>
+      <option value="贮存静置">贮存静置</option>
+      <option value="全工况">全工况（多工况合并）</option>
+    </select>
+
+    <label>输入数据（寿命 / 极值样本，逗号、空格、换行分隔）</label>
+    <textarea id="data" placeholder="例如：12.3, 15.8, 9.4, 21.0, 18.6, ..."></textarea>
+
+    <div class="row">
+      <button class="btn primary small" id="btnSample">载入示例数据</button>
+      <button class="btn ghost small" id="btnFile">从 CSV 读取</button>
+      <input type="file" id="file" accept=".csv,.txt" style="display:none">
+      <button class="btn ghost small" id="btnClear">清空</button>
+    </div>
+
+    <label>拟合方法</label>
+    <div class="radio" id="method">
+      <label class="sel"><input type="radio" name="method" value="mle" checked>极大似然估计 (MLE)</label>
+      <label><input type="radio" name="method" value="rank">概率纸回归 (最小二乘)</label>
+      <label><input type="radio" name="method" value="both">两者对比</label>
+    </div>
+
+    <label>三级阈值体系（基于统计分位数，可手动修改）</label>
+    <div class="thresh-row"><span>预警阈值</span><input type="number" id="thWarn" step="any"> <span style="width:auto">P90</span></div>
+    <div class="thresh-row"><span>报警阈值</span><input type="number" id="thAlarm" step="any"> <span style="width:auto">P99</span></div>
+
+    <div class="row" style="margin-top:16px">
+      <button class="btn primary" id="btnRun">▶ 运行分析</button>
+    </div>
+    <div class="row">
+      <button class="btn ghost small" id="btnCopy">复制结果摘要</button>
+      <button class="btn ghost small" id="btnCSV">导出拟合曲线 CSV</button>
+    </div>
+
+    <div class="note" style="margin-top:14px">
+      说明：本模块基于<b>两参数威布尔分布</b> F(t)=1−exp(−(t/η)<sup>β</sup>)，对输入的寿命 / 极值样本进行可靠性建模。
+      可靠度 R(t) 表示“在载荷 / 时间 t 下仍安全”的概率；η 为特征寿命（尺度参数），β 为形状参数（β&gt;1 表示失效率递增、<br>β&lt;1 表示递减、β=1 退化为指数分布）。
+    </div>
+  </div>
+
+  <!-- 右侧结果区 -->
+  <div id="results">
+    <div class="empty" id="empty">← 请在左侧载入或粘贴数据，然后点击「运行分析」</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================= 数学基础 ================= */
+function gamma(z){
+  if(z<0.5) return Math.PI/(Math.sin(Math.PI*z)*gamma(1-z));
+  z-=1;
+  const C=[0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,
+           -176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  const g=7; let x=C[0];
+  for(let i=1;i<g+2;i++) x+=C[i]/(z+i);
+  const t=z+g+0.5;
+  return Math.sqrt(2*Math.PI)*Math.pow(t,z+0.5)*Math.exp(-t)*x;
+}
+function linreg(xs,ys){
+  const n=xs.length; if(n<2) return {slope:0,intercept:0,r:0};
+  let sx=0,sy=0,sxx=0,syy=0,sxy=0;
+  for(let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];syy+=ys[i]*ys[i];sxy+=xs[i]*ys[i];}
+  const den=(n*sxx-sx*sx);
+  const slope=den===0?0:(n*sxy-sx*sy)/den;
+  const intercept=(sy-slope*sx)/n;
+  const r=(n*sxy-sx*sy)/Math.sqrt((n*sxx-sx*sx)*(n*syy-sy*sy)||1);
+  return {slope,intercept,r};
+}
+/* 极大似然估计：求解 g(beta)=sum(t^b ln t)/sum(t^b) - 1/b - mean(ln t) = 0 */
+function weibullMLE(data){
+  const n=data.length; if(n<1) return {beta:NaN,eta:NaN};
+  const tmax=Math.max(...data);
+  const w=data.map(t=>t/tmax);        // 0 < w <= 1，数值稳定
+  const lnT=data.map(t=>Math.log(t));
+  const meanLn=lnT.reduce((a,b)=>a+b,0)/n;
+  // g(beta) 单调递增：sum(w^b·ln t)/sum(w^b) − 1/b − mean(ln t) = 0
+  const g=b=>{
+    let s1=0,s2=0;
+    for(let i=0;i<n;i++){const wb=Math.pow(w[i],b);s1+=wb*lnT[i];s2+=wb;}
+    return s1/s2 - 1/b - meanLn;
+  };
+  let lo=0.02, hi=1;
+  while(g(hi)<=0 && hi<1e9) hi*=2;      // 保证 g(hi)>0
+  while(g(lo)>=0 && lo>1e-9) lo/=2;     // 保证 g(lo)<0
+  for(let i=0;i<90;i++){const mid=(lo+hi)/2; if(g(mid)<0) lo=mid; else hi=mid;}
+  const beta=(lo+hi)/2;
+  let s2=0; for(const t of data) s2+=Math.pow(t/tmax,beta);
+  const eta=tmax*Math.pow(s2/n, 1/beta);
+  return {beta,eta};
+}
+/* 概率纸回归（最小二乘，Benard 中位秩） */
+function weibullRank(data){
+  const n=data.length;
+  const s=[...data].sort((a,b)=>a-b);
+  const xs=[],ys=[];
+  for(let i=0;i<n;i++){
+    const F=(i+1-0.3)/(n+0.4);
+    if(s[i]<=0) continue;
+    xs.push(Math.log(s[i])); ys.push(Math.log(-Math.log(1-F)));
+  }
+  const {slope,intercept,r}=linreg(xs,ys);
+  const beta=slope, eta=Math.exp(-intercept/beta);
+  return {beta,eta,r};
+}
+function weibullStats(data,beta,eta){
+  const mttf=eta*gamma(1+1/beta);
+  const median=eta*Math.pow(Math.log(2),1/beta);
+  const b10=eta*Math.pow(-Math.log(0.9),1/beta);
+  const varr=eta*eta*(gamma(1+2/beta)-Math.pow(gamma(1+1/beta),2));
+  const sd=Math.sqrt(Math.max(0,varr));
+  const mode=beta>1?eta*Math.pow((beta-1)/beta,1/beta):NaN;
+  return {mttf,median,b10,sd,mode};
+}
+function sampleWeibull(n,beta,eta){
+  const out=[];
+  for(let i=0;i<n;i++) out.push(eta*Math.pow(-Math.log(1-Math.random()),1/beta));
+  return out;
+}
+function quantile(sorted,p){
+  if(!sorted.length) return NaN;
+  const idx=(sorted.length-1)*p, lo=Math.floor(idx), hi=Math.ceil(idx);
+  if(lo===hi) return sorted[lo];
+  return sorted[lo]+(sorted[hi]-sorted[lo])*(idx-lo);
+}
+function hist(data,nbins){
+  const s=[...data].sort((a,b)=>a-b);
+  const lo=s[0], hi=s[s.length-1];
+  nbins=Math.max(5,Math.min(30,nbins||Math.round(Math.sqrt(s.length)*1.5)));
+  const w=(hi-lo)/nbins;
+  const bins=[];
+  for(let i=0;i<nbins;i++) bins.push({x0:lo+i*w,x1:lo+(i+1)*w,c:0});
+  for(const v of data){let i=Math.min(nbins-1,Math.floor((v-lo)/w));bins[i].c++;}
+  return {bins,w};
+}
+
+/* ================= 数值格式化 ================= */
+function fmt(v){
+  if(!isFinite(v)) return '—';
+  if(v===0) return '0';
+  const a=Math.abs(v);
+  if(a>=100000||a<0.001) return v.toExponential(2);
+  if(a>=100) return v.toFixed(0);
+  if(a>=1) return v.toFixed(2);
+  return v.toPrecision(3);
+}
+
+/* ================= SVG 绘图 ================= */
+const W=560,H=340,ML=58,MR=18,MT=26,MB=44;
+let CLIP_SEQ=0;
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function niceTicks(mn,mx,n=5){
+  if(mn===mx){return [mn];}
+  const span=mx-mn, step=Math.pow(10,Math.floor(Math.log10(span/n)));
+  const err=span/n/step;
+  const f=err>=7.5?10:err>=3.5?5:err>=1.5?2:1;
+  const s=step*f, start=Math.ceil(mn/s)*s, out=[];
+  for(let v=start;v<=mx+1e-9;v+=s) out.push(v);
+  return out;
+}
+function logTicks(mn,mx){
+  const out=[],k0=Math.floor(Math.log10(mn)),k1=Math.ceil(Math.log10(mx));
+  for(let k=k0;k<=k1;k++) for(const m of [1,2,5]){const v=m*Math.pow(10,k);if(v>=mn*0.999&&v<=mx*1.001) out.push(v);}
+  return out;
+}
+function lnln(F){return Math.log(-Math.log(1-F));}
+function chart(cfg){
+  const x0=cfg.xRange[0], x1=cfg.xRange[1], y0=cfg.yRange[0], y1=cfg.yRange[1];
+  const px=c=>ML+(cfg.xScale==='log'?(Math.log(c)-Math.log(x0))/(Math.log(x1)-Math.log(x0)):(c-x0)/(x1-x0))*(W-ML-MR);
+  const py=c=>MT+(1-(cfg.yScale==='weibull'?(lnln(c)-y0)/(y1-y0):(c-y0)/(y1-y0)))*(H-MT-MB);
+  // 对 weibull 尺度，yRange 存的是 lnln 坐标
+  const cid='cl'+(CLIP_SEQ++);
+  let s='';
+  s+=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="Consolas,Segoe UI,Microsoft YaHei,sans-serif">`;
+  s+=`<rect x="0" y="0" width="${W}" height="${H}" fill="#172231"/>`;
+  s+=`<defs><clipPath id="${cid}"><rect x="${ML}" y="${MT}" width="${W-ML-MR}" height="${H-MT-MB}"/></clipPath></defs>`;
+  // 网格 + 刻度
+  const gs='stroke:#253548'; const ts='stroke:#2a3b50';
+  let yt,xt;
+  if(cfg.yScale==='weibull'){
+    const Fs=[0.005,0.01,0.02,0.05,0.1,0.2,0.3,0.4,0.5,0.632,0.7,0.8,0.9,0.95,0.99];
+    yt=Fs.filter(F=>lnln(F)>=y0&&lnln(F)<=y1).map(F=>({v:F,label:(F*100).toFixed(F<0.1?1:0)+'%'}));
+  }else{
+    yt=niceTicks(y0,y1,5).map(v=>({v,label:fmt(v)}));
+  }
+  xt=cfg.xScale==='log'?logTicks(x0,x1).map(v=>({v,label:fmt(v)})):niceTicks(x0,x1,6).map(v=>({v,label:fmt(v)}));
+  for(const t of yt){
+    const yy=cfg.yScale==='weibull'?py(t.v):py(t.v);
+    s+=`<line x1="${ML}" y1="${yy}" x2="${W-MR}" y2="${yy}" stroke="${gs}"/>`;
+    s+=`<text x="${ML-6}" y="${yy+4}" fill="#8fa3bb" font-size="10" text-anchor="end">${esc(t.label)}</text>`;
+  }
+  for(const t of xt){
+    const xx=px(t.v);
+    s+=`<line x1="${xx}" y1="${MT}" x2="${xx}" y2="${H-MB}" stroke="${gs}"/>`;
+    s+=`<text x="${xx}" y="${H-MB+16}" fill="#8fa3bb" font-size="10" text-anchor="middle">${esc(t.label)}</text>`;
+  }
+  // 边框
+  s+=`<rect x="${ML}" y="${MT}" width="${W-ML-MR}" height="${H-MT-MB}" fill="none" stroke="${ts}"/>`;
+  // 直方图（bins[].c 已为与 y 轴同尺度的密度值）
+  if(cfg.hist){
+    for(const b of cfg.hist.bins){
+      const xx0=px(b.x0), xx1=px(b.x1);
+      const ytop=py(b.c), ybottom=py(y0);
+      s+=`<rect x="${xx0+1}" y="${Math.min(ytop,ybottom)}" width="${Math.max(1,xx1-xx0-2)}" height="${Math.max(0,Math.abs(ybottom-ytop))}" fill="#244059" opacity="0.85"/>`;
+    }
+  }
+  // 曲线
+  for(const ln of (cfg.lines||[])){
+    const d=ln.data.map((p,i)=>`${i?'L':'M'}${px(p[0]).toFixed(1)},${py(p[1]).toFixed(1)}`).join('');
+    s+=`<path d="${d}" fill="none" stroke="${ln.color}" stroke-width="${ln.width||2}" ${ln.dash?'stroke-dasharray="6 4"':''} clip-path="url(#${cid})"/>`;
+  }
+  // 数据点（兼容 {x,y} 对象与 [x,y] 数组）
+  for(const p of (cfg.points||[])){
+    const xx=Array.isArray(p)?p[0]:p.x;
+    const yy=Array.isArray(p)?p[1]:p.y;
+    s+=`<circle cx="${px(xx)}" cy="${py(yy)}" r="3" fill="${p.color||'#22d3ee'}" clip-path="url(#${cid})"/>`;
+  }
+  // 参考线（如 0.632）
+  for(const ref of (cfg.reflines||[])){
+    const yy=cfg.yScale==='weibull'?py(ref.y):py(ref.y);
+    s+=`<line x1="${ML}" y1="${yy}" x2="${W-MR}" y2="${yy}" stroke="${ref.color||'#fbbf24'}" stroke-dasharray="4 4" opacity="0.5"/>`;
+    s+=`<text x="${W-MR-4}" y="${yy-4}" fill="${ref.color||'#fbbf24'}" font-size="9" text-anchor="end">${esc(ref.label)}</text>`;
+  }
+  // 坐标轴标签
+  s+=`<text x="${ML+(W-ML-MR)/2}" y="${H-6}" fill="#c7d4e5" font-size="11" text-anchor="middle">${esc(cfg.xlabel)}</text>`;
+  s+=`<text x="14" y="${MT+(H-MT-MB)/2}" fill="#c7d4e5" font-size="11" text-anchor="middle" transform="rotate(-90 14 ${MT+(H-MT-MB)/2})">${esc(cfg.ylabel)}</text>`;
+  s+='</svg>';
+  return s;
+}
+
+/* ================= 应用逻辑 ================= */
+function parseData(txt){
+  const nums=[];
+  for(const tok of txt.split(/[\s,;，、\t]+/)){
+    if(!tok) continue;
+    const v=parseFloat(tok.replace(/[^\d.eE+-]/g,''));
+    if(isFinite(v) && v>0) nums.push(v);
+  }
+  return nums;
+}
+const PARAM_UNIT={acc:'g',strain:'με',temp:'℃'};
+const PARAM_NAME={acc:'加速度',strain:'应变',temp:'温度'};
+
+function loadSample(){
+  const p=document.getElementById('param').value;
+  const presets={acc:[2.6,3.1,60],strain:[2.2,820,70],temp:[4.2,68,60]};
+  const [beta,eta,n]=presets[p];
+  document.getElementById('data').value=sampleWeibull(n,beta,eta).map(v=>v.toFixed(2)).join(', ');
+}
+
+function run(){
+  const data=parseData(document.getElementById('data').value);
+  const p=document.getElementById('param').value;
+  const unit=PARAM_UNIT[p], pname=PARAM_NAME[p];
+  const method=document.querySelector('input[name=method]:checked').value;
+  const res=document.getElementById('results');
+  if(data.length<3){
+    res.innerHTML=`<div class="empty">样本量不足（需 ≥ 3 个正数）。请检查输入数据。</div>`;
+    return;
+  }
+  const s=[...data].sort((a,b)=>a-b);
+  const n=data.length;
+  if(s[0]===s[n-1]){res.innerHTML=`<div class="empty">输入数据全部相同，无法进行分布拟合。请检查数据。</div>`;return;}
+
+  // 拟合
+  const mle=weibullMLE(data);
+  const rk=weibullRank(data);
+  const used = method==='rank'?rk:method==='both'?mle:mle;
+  const {beta,eta}=used;
+  const st=weibullStats(data,beta,eta);
+
+  // 统计量
+  const mean=data.reduce((a,b)=>a+b,0)/n;
+  const sd=Math.sqrt(data.reduce((a,b)=>a+(b-mean)*(b-mean),0)/(n-1));
+  const cv=sd/mean*100;
+  const p50=quantile(s,0.5), p90=quantile(s,0.9), p99=quantile(s,0.99);
+
+  // 三级阈值
+  const thWarn=document.getElementById('thWarn').value!==''?parseFloat(document.getElementById('thWarn').value):p90;
+  const thAlarm=document.getElementById('thAlarm').value!==''?parseFloat(document.getElementById('thAlarm').value):p99;
+  document.getElementById('thWarn').value=fmt(thWarn);
+  document.getElementById('thAlarm').value=fmt(thAlarm);
+  const overWarn=data.filter(v=>v>thWarn).length;
+  const overAlarm=data.filter(v=>v>thAlarm).length;
+
+  // 曲线采样
+  const tmax=Math.max(...data)*1.15, tmin=Math.min(...data)*0.6;
+  const T=[]; const N=240;
+  for(let i=0;i<=N;i++) T.push(tmin+(tmax-tmin)*i/N);
+  const R=T.map(t=>Math.exp(-Math.pow(t/eta,beta)));
+  const F=T.map(t=>1-Math.exp(-Math.pow(t/eta,beta)));
+  const f=T.map(t=>(beta/eta)*Math.pow(t/eta,beta-1)*Math.exp(-Math.pow(t/eta,beta)));
+  const h=T.map(t=>(beta/eta)*Math.pow(t/eta,beta-1));
+
+  // 经验可靠度 / 概率纸点
+  const empR=[], probPts=[];
+  for(let i=0;i<n;i++){
+    const Fi=(i+1-0.3)/(n+0.4);
+    empR.push([s[i],1-Fi]);
+    probPts.push({x:s[i],F:Fi});
+  }
+  // 概率纸范围
+  const Fmin=Math.max(0.002,Math.min(...probPts.map(p=>p.F))*0.6);
+  const Fmax=Math.min(0.995,Math.max(...probPts.map(p=>p.F))*1.2);
+  const tplo=Math.min(...data)*0.5, tphi=Math.max(...data)*1.3;
+
+  // 直方图（转为密度，与 PDF 同尺度）
+  const hb=hist(data,Math.round(Math.sqrt(n)*1.6));
+  const binW=hb.w||1;
+  hb.bins.forEach(b=>b.c=b.c/(n*binW));
+
+  // 拟合优度（相关系数基于概率纸）
+  const rho=rk.r;
+  const r2=rho*rho;
+
+  let html='';
+  html+=`<div class="card"><h2>拟合结果 · ${pname}（${document.getElementById('cond').value}）</h2>`;
+  html+=`<div class="stats-grid">
+    <div class="stat"><div class="k">形状参数 β</div><div class="v">${fmt(beta)}</div></div>
+    <div class="stat"><div class="k">尺度(特征寿命) η</div><div class="v">${fmt(eta)} <small>${unit}</small></div></div>
+    <div class="stat"><div class="k">平均寿命 MTTF</div><div class="v">${fmt(st.mttf)} <small>${unit}</small></div></div>
+    <div class="stat"><div class="k">中位寿命 B50</div><div class="v">${fmt(st.median)} <small>${unit}</small></div></div>
+    <div class="stat"><div class="k">B10 寿命</div><div class="v">${fmt(st.b10)} <small>${unit}</small></div></div>
+    <div class="stat"><div class="k">标准差 σ</div><div class="v">${fmt(st.sd)} <small>${unit}</small></div></div>
+  </div>`;
+  if(method==='both'){
+    html+=`<div class="note" style="margin-top:10px">对比：MLE β=${fmt(mle.beta)}, η=${fmt(mle.eta)} ｜ 概率纸回归 β=${fmt(rk.beta)}, η=${fmt(rk.eta)}</div>`;
+  }
+  html+=`<div class="legend" style="margin-top:10px">
+    <span>样本量 n = ${n}</span>
+    <span>拟合优度 ρ = ${rho.toFixed(4)}（R² = ${r2.toFixed(4)}）</span>
+    <span>均值 ${fmt(mean)} ${unit}</span>
+    <span>峰值 ${fmt(s[n-1])} ${unit}</span>
+    <span>极差 ${fmt(s[n-1]-s[0])} ${unit}</span>
+    <span>变异系数 ${fmt(cv)}%</span>
+  </div>`;
+  html+=`<div style="margin-top:12px"><span style="font-size:12px;color:#8fa3bb">三级阈值体系（统计分位数）：</span>
+    <span class="tag n">正常 ≤ ${fmt(p50)}</span>
+    <span class="tag w">预警 ${fmt(thWarn)}（超限 ${overWarn} 次）</span>
+    <span class="tag a">报警 ${fmt(thAlarm)}（超限 ${overAlarm} 次）</span>
+  </div>`;
+  html+=`</div>`;
+
+  html+=`<div class="charts">`;
+  // 1 可靠度 R(t)
+  html+=`<div class="chart-box"><h3>可靠度曲线 R(t)</h3><div class="formula">R(t) = exp(−(t/η)^β)</div>`;
+  html+=chart({xRange:[tmin,tmax],yRange:[0,1],xlabel:`时间/载荷 t (${unit})`,ylabel:'可靠度 R(t)',
+    lines:[{data:T.map((t,i)=>[t,R[i]]),color:'#22d3ee',width:2.5}],
+    points:empR.map(p=>({x:p[0],y:p[1],color:'#3b82f6'})),
+    reflines:[{y:0.5,label:'R=50%'},{y:0.9,label:'R=90%'}]});
+  html+=`<div class="legend"><i style="background:#22d3ee"></i>拟合 R(t)　<i style="background:#3b82f6;width:8px;height:8px;border-radius:50%"></i>经验可靠度</div></div>`;
+
+  // 2 失效概率密度 f(t) + 直方图
+  const yMaxPdf=Math.max(...f, ...hb.bins.map(b=>b.c))*1.15;
+  html+=`<div class="chart-box"><h3>失效概率密度曲线 f(t)</h3><div class="formula">f(t) = (β/η)(t/η)^(β−1)·exp(−(t/η)^β)</div>`;
+  html+=chart({xRange:[tmin,tmax],yRange:[0,yMaxPdf],xlabel:`时间/载荷 t (${unit})`,ylabel:'概率密度 f(t)',
+    hist:hb, lines:[{data:T.map((t,i)=>[t,f[i]]),color:'#34d399',width:2.5}]});
+  html+=`</div>`;
+
+  // 3 故障率 λ(t)
+  html+=`<div class="chart-box"><h3>故障率（失效率）曲线 λ(t)</h3><div class="formula">λ(t) = (β/η)(t/η)^(β−1)</div>`;
+  html+=chart({xRange:[tmin,tmax],yRange:[0,Math.max(...h)*1.1],xlabel:`时间/载荷 t (${unit})`,ylabel:'故障率 λ(t)',
+    lines:[{data:T.map((t,i)=>[t,h[i]]),color:'#fbbf24',width:2.5}]});
+  html+=`<div class="legend"><i style="background:#fbbf24"></i>${beta>1?'β>1：失效率递增（磨损/疲劳期）':beta<1?'β<1：失效率递减（早期失效期）':'β=1：恒定失效率（指数分布）'}</div></div>`;
+
+  // 4 累积失效概率 F(t)
+  html+=`<div class="chart-box"><h3>累积失效概率 F(t)</h3><div class="formula">F(t) = 1 − exp(−(t/η)^β)</div>`;
+  html+=chart({xRange:[tmin,tmax],yRange:[0,1],xlabel:`时间/载荷 t (${unit})`,ylabel:'累积失效概率 F(t)',
+    lines:[{data:T.map((t,i)=>[t,F[i]]),color:'#a78bfa',width:2.5}],
+    points:probPts.map(p=>({x:p.x,y:p.F,color:'#3b82f6'})),
+    reflines:[{y:0.632,label:'F=63.2% (t=η)'}]});
+  html+=`</div>`;
+
+  // 5 威布尔概率纸
+  html+=`<div class="chart-box"><h3>威布尔概率纸拟合直线</h3><div class="formula">ln[−ln(1−F)] = β·ln t − β·ln η</div>`;
+  const lnT=[];for(let i=0;i<=N;i++){const t=tplo*Math.pow(tphi/tplo,i/N);lnT.push(t);}
+  html+=chart({xRange:[tplo,tphi],yRange:[lnln(Fmin),lnln(Fmax)],xScale:'log',yScale:'weibull',
+    xlabel:`时间/载荷 t (${unit})（对数坐标）`,ylabel:'累积失效概率 F(t)',
+    lines:[{data:lnT.map(t=>[t,1-Math.exp(-Math.pow(t/eta,beta))]),color:'#22d3ee',width:2.5}],
+    points:probPts.map(p=>({x:p.x,y:p.F,color:'#f472b6'}))});
+  html+=`<div class="legend"><i style="background:#22d3ee"></i>拟合直线（斜率=β）　<i style="background:#f472b6;width:8px;height:8px;border-radius:50%"></i>中位秩数据点</div></div>`;
+
+  // 6 经验可靠度台阶图
+  html+=`<div class="chart-box"><h3>经验可靠度（台阶函数）</h3><div class="formula">R̂(tᵢ) = 1 − (i−0.3)/(n+0.4)</div>`;
+  const step=[];
+  for(let i=0;i<n;i++){const Fi=(i+1-0.3)/(n+0.4);step.push([s[i],1-Fi]);}
+  const stepLine=[];
+  stepLine.push([tmin,1]);
+  for(const pt of step) stepLine.push([pt[0],pt[1]]);
+  stepLine.push([tmax,step[step.length-1][1]]);
+  html+=chart({xRange:[tmin,tmax],yRange:[0,1],xlabel:`时间/载荷 t (${unit})`,ylabel:'经验可靠度 R̂(t)',
+    lines:[{data:stepLine,color:'#22d3ee',width:2}],
+    points:step.map(p=>({x:p[0],y:p[1],color:'#22d3ee'}))});
+  html+=`</div>`;
+
+  html+=`</div>`;
+  res.innerHTML=html;
+}
+
+/* ================= 事件绑定 ================= */
+document.getElementById('btnRun').addEventListener('click',run);
+document.getElementById('btnSample').addEventListener('click',loadSample);
+document.getElementById('btnClear').addEventListener('click',()=>{document.getElementById('data').value='';});
+document.getElementById('btnFile').addEventListener('click',()=>document.getElementById('file').click());
+document.getElementById('file').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{document.getElementById('data').value=rd.result;};
+  rd.readAsText(f);
+});
+document.querySelectorAll('#method label').forEach(l=>{
+  l.addEventListener('click',()=>{
+    document.querySelectorAll('#method label').forEach(x=>x.classList.remove('sel'));
+    l.classList.add('sel');
+  });
+});
+document.getElementById('btnCopy').addEventListener('click',()=>{
+  const data=parseData(document.getElementById('data').value);
+  if(data.length<3){alert('请先输入有效数据');return;}
+  const mle=weibullMLE(data), rk=weibullRank(data), st=weibullStats(data,mle.beta,mle.eta);
+  const p=document.getElementById('param').value, unit=PARAM_UNIT[p];
+  const txt=`【威布尔可靠性评估结果】\n`+
+    `参数：${PARAM_NAME[p]}（单位 ${unit}）｜工况：${document.getElementById('cond').value}\n`+
+    `样本量 n=${data.length}\n`+
+    `MLE：β=${mle.beta.toFixed(4)}, η=${mle.eta.toFixed(4)} ${unit}\n`+
+    `概率纸回归：β=${rk.beta.toFixed(4)}, η=${rk.eta.toFixed(4)} ${unit}, ρ=${rk.r.toFixed(4)}\n`+
+    `MTTF=${st.mttf.toFixed(3)}, 中位寿命=${st.median.toFixed(3)}, B10=${st.b10.toFixed(3)}, σ=${st.sd.toFixed(3)} ${unit}`;
+  navigator.clipboard.writeText(txt).then(()=>alert('已复制到剪贴板')).catch(()=>alert(txt));
+});
+document.getElementById('btnCSV').addEventListener('click',()=>{
+  const data=parseData(document.getElementById('data').value);
+  if(data.length<3){alert('请先输入有效数据');return;}
+  const {beta,eta}=weibullMLE(data);
+  const tmax=Math.max(...data)*1.15, tmin=Math.min(...data)*0.6;
+  const rows=['t,R(t),F(t),f(t),lambda(t)'];
+  for(let i=0;i<=240;i++){const t=tmin+(tmax-tmin)*i/240;
+    const R=Math.exp(-Math.pow(t/eta,beta)), F=1-R;
+    rows.push(`${t.toFixed(4)},${R.toFixed(6)},${F.toFixed(6)},${((beta/eta)*Math.pow(t/eta,beta-1)*R).toFixed(6)},${((beta/eta)*Math.pow(t/eta,beta-1)).toFixed(6)}`);}
+  const blob=new Blob([rows.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='weibull_curves.csv';a.click();
+});
+
+/* 首次载入示例，便于预览 */
+loadSample();
+</script>
+</body>
+</html>
